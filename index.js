@@ -12,8 +12,6 @@ const fs = require("fs");
 require("dotenv").config();
 
 const TOKEN = process.env.DISCORD_TOKEN;
-
-const USER_ID = "335950828412076035";
 const VOICE_CHANNEL_ID = "750112204216598579";
 const AUDIO_FILE = "./entrada.mp3";
 
@@ -26,22 +24,23 @@ const client = new Client({
 
 let tocando = false;
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`Bot online como ${client.user.tag}`);
 });
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
+  console.log(`Evento voz: user=${newState.member?.id} old=${oldState.channelId} new=${newState.channelId}`);
+
+  if (tocando) return;
+
+  const entrouNoCanal =
+    oldState.channelId !== VOICE_CHANNEL_ID &&
+    newState.channelId === VOICE_CHANNEL_ID;
+
+  if (!entrouNoCanal) return;
+
   try {
-    if (tocando) return;
-
-    const usuarioCorreto = newState.member?.id === USER_ID;
-    const entrouNoCanal =
-      oldState.channelId !== VOICE_CHANNEL_ID &&
-      newState.channelId === VOICE_CHANNEL_ID;
-
-    if (!usuarioCorreto || !entrouNoCanal) return;
-
-    console.log("Usuário detectado entrando na call.");
+    console.log("Alguém entrou no canal configurado.");
 
     if (!fs.existsSync(AUDIO_FILE)) {
       console.error(`Arquivo não encontrado: ${AUDIO_FILE}`);
@@ -58,29 +57,17 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
       selfMute: false
     });
 
-    console.log("Conectando ao canal de voz...");
-
-    await entersState(
-      connection,
-      VoiceConnectionStatus.Ready,
-      30000
-    );
-
-    console.log("Conectado ao canal de voz.");
+    await entersState(connection, VoiceConnectionStatus.Ready, 30000);
 
     const player = createAudioPlayer();
-
-    const resource = createAudioResource(AUDIO_FILE, {
-      inlineVolume: true
-    });
+    const resource = createAudioResource(AUDIO_FILE, { inlineVolume: true });
 
     resource.volume.setVolume(1);
 
     connection.subscribe(player);
-
-    console.log("Iniciando reprodução...");
-
     player.play(resource);
+
+    console.log("Tocando áudio...");
 
     player.on(AudioPlayerStatus.Playing, () => {
       console.log("Áudio tocando.");
@@ -95,11 +82,6 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     player.on("error", (error) => {
       console.error("Erro no player:", error);
       connection.destroy();
-      tocando = false;
-    });
-
-    connection.on("error", (error) => {
-      console.error("Erro na conexão:", error);
       tocando = false;
     });
 
