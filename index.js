@@ -12,7 +12,7 @@ require("dotenv").config();
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
-const USER_ID = "362029431021109270";
+const USER_ID = "335950828412076035";
 const VOICE_CHANNEL_ID = "750112204216598579";
 const AUDIO_FILE = "./entrada.mp3";
 
