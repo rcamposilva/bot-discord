@@ -4,10 +4,11 @@ const {
   createAudioPlayer,
   createAudioResource,
   AudioPlayerStatus,
-  entersState,
-  VoiceConnectionStatus
+  VoiceConnectionStatus,
+  entersState
 } = require("@discordjs/voice");
 
+const fs = require("fs");
 require("dotenv").config();
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -30,27 +31,34 @@ client.once("ready", () => {
 });
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
-  if (tocando) return;
-
-  const userEntrou =
-    oldState.channelId !== VOICE_CHANNEL_ID &&
-    newState.channelId === VOICE_CHANNEL_ID;
-
-  const usuarioCorreto = newState.member?.id === USER_ID;
-
-  if (!userEntrou || !usuarioCorreto) return;
-
   try {
-    tocando = true;
+    if (tocando) return;
 
-    console.log(`Usuário ${newState.member.user.tag} entrou na call.`);
+    const usuarioCorreto = newState.member?.id === USER_ID;
+    const entrouNoCanal =
+      oldState.channelId !== VOICE_CHANNEL_ID &&
+      newState.channelId === VOICE_CHANNEL_ID;
+
+    if (!usuarioCorreto || !entrouNoCanal) return;
+
+    console.log("Usuário detectado entrando na call.");
+
+    if (!fs.existsSync(AUDIO_FILE)) {
+      console.error(`Arquivo não encontrado: ${AUDIO_FILE}`);
+      return;
+    }
+
+    tocando = true;
 
     const connection = joinVoiceChannel({
       channelId: VOICE_CHANNEL_ID,
       guildId: newState.guild.id,
       adapterCreator: newState.guild.voiceAdapterCreator,
-      selfDeaf: false
+      selfDeaf: false,
+      selfMute: false
     });
+
+    console.log("Conectando ao canal de voz...");
 
     await entersState(
       connection,
@@ -70,9 +78,13 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
 
     connection.subscribe(player);
 
+    console.log("Iniciando reprodução...");
+
     player.play(resource);
 
-    console.log("Tocando áudio...");
+    player.on(AudioPlayerStatus.Playing, () => {
+      console.log("Áudio tocando.");
+    });
 
     player.on(AudioPlayerStatus.Idle, () => {
       console.log("Áudio finalizado.");
@@ -81,8 +93,13 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     });
 
     player.on("error", (error) => {
-      console.error("Erro ao tocar áudio:", error);
+      console.error("Erro no player:", error);
       connection.destroy();
+      tocando = false;
+    });
+
+    connection.on("error", (error) => {
+      console.error("Erro na conexão:", error);
       tocando = false;
     });
 
