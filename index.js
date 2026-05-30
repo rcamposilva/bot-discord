@@ -60,8 +60,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
       selfMute: false
     });
 
-    await entersState(connection, VoiceConnectionStatus.Ready, 30000);
-
+    
     console.log("Bot conectado na call.");
 
     const player = createAudioPlayer();
