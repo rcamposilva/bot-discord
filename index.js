@@ -4,10 +4,13 @@ const {
   createAudioPlayer,
   createAudioResource,
   AudioPlayerStatus,
+  StreamType,
   VoiceConnectionStatus,
   entersState
 } = require("@discordjs/voice");
 
+const prism = require("prism-media");
+const ffmpegPath = require("ffmpeg-static");
 const fs = require("fs");
 require("dotenv").config();
 
@@ -40,7 +43,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   if (!entrouNoCanal) return;
 
   try {
-    console.log("Alguém entrou no canal configurado.");
+    console.log("Usuário entrou no canal configurado.");
 
     if (!fs.existsSync(AUDIO_FILE)) {
       console.error(`Arquivo não encontrado: ${AUDIO_FILE}`);
@@ -59,18 +62,33 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
 
     await entersState(connection, VoiceConnectionStatus.Ready, 30000);
 
-    const player = createAudioPlayer();
-    const resource = createAudioResource(AUDIO_FILE, { inlineVolume: true });
+    console.log("Bot conectado na call.");
 
-    resource.volume.setVolume(1);
+    const player = createAudioPlayer();
+
+    const ffmpeg = new prism.FFmpeg({
+      executable: ffmpegPath,
+      args: [
+        "-i", AUDIO_FILE,
+        "-analyzeduration", "0",
+        "-loglevel", "0",
+        "-f", "s16le",
+        "-ar", "48000",
+        "-ac", "2"
+      ]
+    });
+
+    const resource = createAudioResource(ffmpeg, {
+      inputType: StreamType.Raw
+    });
 
     connection.subscribe(player);
     player.play(resource);
 
-    console.log("Tocando áudio...");
+    console.log("Comando para tocar enviado.");
 
     player.on(AudioPlayerStatus.Playing, () => {
-      console.log("Áudio tocando.");
+      console.log("Áudio tocando agora.");
     });
 
     player.on(AudioPlayerStatus.Idle, () => {
